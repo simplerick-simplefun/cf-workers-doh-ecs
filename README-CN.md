@@ -21,6 +21,9 @@
   - [POST /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json)
 
+## 限制：
+- 由于 DNS 代理部署在 Cloudflare Workers 上（以及可能的其他无服务器服务），它只能通过域名访问。无法通过 "https://ip" 访问 DNS 代理。
+
 ## 安装
 - 注册一个免费的 [Cloudflare Workers](https://workers.cloudflare.com/) 账户，创建一个新的 Worker，将脚本替换为 [index.js](/index.js) 的内容，部署 Worker，就完成了。
 - 修改 **URL_UPSTREAM_DNS_QUERY** 和 **URL_UPSTREAM_RESOLVE**，以切换到其他上游 DNS 服务提供商。
