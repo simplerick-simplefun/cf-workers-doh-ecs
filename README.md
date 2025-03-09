@@ -12,7 +12,7 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 
 **With auto-ECS feature, DNS Proxy will be able to produce DNS response that is geographically close to IP of the actual client.**
 
-## Feature:
+## Features:
 - Automatically send EDNS Client Subnet (ECS) with DoH request to upstream DoH service. Uses end-user client's IP (the client IP sending DoH request to the DNS Proxy) as base for the subnet.
   - Subnet: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
   - Note that not all public DNS services suppt DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
@@ -20,6 +20,8 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
   - [GET /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [POST /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json)
+## Limitations:
+- Since the DNS Proxy is deployed on Cloudflare Workers (and possibly other server-less services), it can only be accessed through domain name. Accessing DOH with "https://ip" is impossible.
 ## Installation
 - Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [index.js](/index.js), deploy the worker, and you're done.
 - Modify **URL_UPSTREAM_DNS_QUERY** and **URL_UPSTREAM_RESOLVE** to switch to other upstream DNS service providers.
