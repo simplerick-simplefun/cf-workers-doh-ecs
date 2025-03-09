@@ -21,7 +21,7 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
   - [POST /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json)
 ## Limitations:
-- Since the DNS Proxy is deployed on Cloudflare Workers (and possibly other server-less services), it can only be accessed through domain name. Accessing the DNS Proxy with "https://ip" is impossible.
+- Since the DNS Proxy is deployed on Cloudflare Workers (and possibly other server-less services), it can only be accessed through domain name. Accessing the DNS Proxy with "https://ip" is not possible in this kind of deployment.
 ## Installation
 - Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [index.js](/index.js), deploy the worker, and you're done.
 - Modify **URL_UPSTREAM_DNS_QUERY** and **URL_UPSTREAM_RESOLVE** to switch to other upstream DNS service providers.
