@@ -1,5 +1,7 @@
 # cf-workers-doh
 
+[中文版 README ](https://github.com/simplerick-simplefun/cf-workers-doh/blob/main/README-CN.md)
+
 **A DNS-over-HTTPS Proxy**
 
 Proxy DoH (DNS-over-HTTPS) with Auto ECS (EDNS Client Subnet) on Cloudflare Workers.
