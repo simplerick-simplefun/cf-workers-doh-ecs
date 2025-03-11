@@ -2,7 +2,7 @@
 
 使用 Chatgpt 翻译的 README 中文版
 
-**一个 DNS-over-HTTPS 代理**
+**一个具有 自动 ECS 功能的 DNS-over-HTTPS 代理**
 
 在 Cloudflare Workers 上使用自动 ECS（EDNS Client Subnet）代理 DoH（DNS-over-HTTPS）。
 
