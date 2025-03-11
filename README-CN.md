@@ -4,11 +4,11 @@
 
 **一个具有 自动 ECS 功能的 DNS-over-HTTPS 代理**
 
-在 Cloudflare Workers 上使用自动 ECS（EDNS Client Subnet）代理 DoH（DNS-over-HTTPS）。
+在 Cloudflare Workers 上部署具有自动 ECS（EDNS Client Subnet）功能的 DoH（DNS-over-HTTPS）代理。
 
-带有 ECS 的 DNS DoH 请求会生成 DNS 响应，该响应根据 ECS 中指定的子网，为域名查找提供准确的地理位置响应。请参阅 [https://developers.google.com/speed/public-dns/docs/ecs](https://developers.google.com/speed/public-dns/docs/ecs)。
+带有 ECS 的 DNS DoH 请求会 根据 ECS 中指定的子网 生成 DNS 响应，为域名查找提供准确的、最接近该子网地理位置的解析结果。请参阅 [https://developers.google.com/speed/public-dns/docs/ecs](https://developers.google.com/speed/public-dns/docs/ecs)。
 
-这对于 DNS 代理特别有用，因为通常 DNS 代理会生成一个地理位置接近 DNS 代理 IP 的 DNS 响应，而不是接近 实际发送 DNS 查询/请求 （到DNS代理）的 实际客户端的 IP。
+这对于 DNS 代理特别有用，因为通常 DNS 代理会生成一个地理位置接近 DNS 代理 IP 的 DNS 响应，而不是接近 实际发送 DNS 查询请求 （到DNS代理）的 实际客户端的 IP。
 
 **通过自动 ECS 功能，DNS 代理将能够生成地理位置接近实际客户端 IP 的 DNS 响应。**
 
