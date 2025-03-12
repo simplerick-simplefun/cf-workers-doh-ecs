@@ -3,7 +3,8 @@ const URL_UPSTREAM_DNS_QUERY = 'https://dns.google/dns-query';
 const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
 //// Change your DoH upstream here ////
 
-const contype = 'application/dns-message'
+const APPL_DNS_MSG = 'application/dns-message'
+const APPL_DNS_JSON = 'application/dns-json'
 
 // developers.cloudflare.com/workers/runtime-apis/fetch-event/#syntax-module-worker
 export default {
@@ -13,8 +14,19 @@ export default {
 };
 
 
+/**
+ * Truncates an IPv6 address to its /56 prefix.
+ *
+ * This function expands any "::" shorthand to ensure the address has 8 segments,
+ * pads each segment to 4 digits, and then truncates the address to the first 5 segments.
+ * The last two characters of the 5th segment are replaced with "00", and the remaining
+ * segments are set to "0000".
+ *
+ * @param {string} ipv6 - The IPv6 address to truncate.
+ * @returns {string} - The truncated IPv6 address with a /56 prefix.
+ */
 function truncateIPv6To56(ipv6) {
-  // Step 1: Expand "::" to have 8 segments
+  // Expand "::" to have 8 segments
   let segments = ipv6.split(':');
 
   // If the address has fewer than 8 segments due to "::", fill in the missing segments
@@ -24,14 +36,14 @@ function truncateIPv6To56(ipv6) {
     segments.splice(segments.indexOf(''), 0, ...emptySegments);
   }
 
-  // Step 2: Ensure each segment is 4 digits long, pad with 0s if needed
+  // Ensure each segment is 4 digits long, pad with 0s if needed
   segments = segments.map(seg => seg.padStart(4, '0'));
 
-  // Step 3: Keep first 5 segments, truncate the 5th segment's last two characters to "00"
+  // Keep first 5 segments, truncate the 5th segment's last two characters to "00"
   const truncatedSegments = segments.slice(0, 5);
   truncatedSegments[4] = truncatedSegments[4].slice(0, 2) + '00'; // Modify the last 2 digits of the 5th segment
 
-  // Step 4: Rejoin the segments and add the trailing 0s
+  // Rejoin the segments and add the trailing 0s
   return truncatedSegments.join(':') + ':0000:0000:0000';
 }
 
@@ -53,6 +65,15 @@ function getECSData(request) {
   }
 }
 
+/**
+ * Encodes an IP address and prefix length into an EDNS Client Subnet (ECS) buffer.
+ *
+ * @param {number} family - The address family (1 for IPv4, 2 for IPv6).
+ * @param {string} subnet - The IP address in string format.
+ * @param {number} prefixLength - The prefix length of the subnet.
+ * @returns {Uint8Array} The ECS buffer containing the encoded IP address and prefix length.
+ * @throws {Error} If the IP address is invalid.
+ */
 function encodeECStoBuffer(family, subnet, prefixLength) {
   let addressBytes;
 
@@ -127,9 +148,11 @@ function decodeBase64Url(base64Url) {
 
 /**
 * Modifies a raw binary DNS query to include an ECS (EDNS Client Subnet) option
-* @param {Buffer} originalBuffer - Original DNS query in binary form
+* Does not modify original buffer if it already contains an ECS option
+* 
+* @param {ArrayBuffer} originalArrayBuffer - Original DNS query in binary form
 * @param {Object} ecsData - ECS data { family, subnet, prefix }
-* @returns {Buffer} Modified DNS query
+* @returns {Uint8Array} Modified DNS query
 */
 function modifyDNSQuery(originalArrayBuffer, ecsData) {
     if (!originalArrayBuffer || originalArrayBuffer.byteLength === 0) {
@@ -193,7 +216,13 @@ function modifyDNSQuery(originalArrayBuffer, ecsData) {
         newBuffer.set(originalBuffer.subarray(addOffset + 10), addOffset + 10 + ecsBuffer.length);
     } else {
         let optHeader = new Uint8Array(11);
-        optHeader.set([0, OPT_TYPE >> 8, OPT_TYPE & 0xff, 0x10, 0, 0, 0, 0, 0, ecsBuffer.length >> 8, ecsBuffer.length & 0xff]);
+        optHeader.set([
+            0,                                              // uint8 ::MUST be 0 (root domain)
+            OPT_TYPE >> 8, OPT_TYPE & 0xff,                 // uint16::OPT code (OPT_TYPE=41)
+            0x10, 0x00,                                     // uint16::UDP payload size (4096)
+            0, 0, 0, 0,                                     // uint32::extended RCODE and flags
+            ecsBuffer.length >> 8, ecsBuffer.length & 0xff  // uint16::length of all RDATA
+        ]);
         newBuffer = new Uint8Array(originalBuffer.length + optHeader.length + ecsBuffer.length);
         newBuffer.set(originalBuffer, 0);
         newBuffer.set(optHeader, originalBuffer.length);
@@ -206,14 +235,13 @@ function modifyDNSQuery(originalArrayBuffer, ecsData) {
 }
 
 /**
-* Handles GET-based DoH queries
+* Handles GET-based DoH queries with /dns-query endpoint
 * @param {Request} request
 * @returns {Promise<Response>}
 */
 async function dns_query_get(request) {
     const params = new URL(request.url).searchParams;
-    if (!params.has("dns")) return new Response("Bad Request", { status: 400 });
-
+    
     let ecsData = getECSData(request);
     if (ecsData) {
         let origBuffer = decodeBase64Url(params.get("dns"));
@@ -222,11 +250,11 @@ async function dns_query_get(request) {
     }
 
     let url = `${URL_UPSTREAM_DNS_QUERY}?${params.toString()}`;
-    return fetch(url, { method: "GET", headers: { "accept": contype } });
+    return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_MSG } });
 }
 
 /**
-* Handles DNS query via Google's JSON API
+* Handles DNS queries via Google's JSON API with /resolve endpoint
 * @param {Request} request
 * @returns {Promise<Response>}
 */
@@ -242,16 +270,17 @@ async function dns_resolve_googlejson(request) {
     }
     
     let url = `${URL_UPSTREAM_RESOLVE}?${params.toString()}`;
-    return fetch(url, { method: "GET",  headers: request.headers });
+    return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_JSON } });
 }
 
 /**
-* Handles POST-based DoH queries
+* Handles POST-based DoH queries with /dns-query endpoint
 * @param {Request} request
 * @returns {Promise<Response>}
 */
 async function dns_query_post(request) {
     let body = await request.arrayBuffer(); // Get raw binary DNS request
+
     let ecsData = getECSData(request);
     if (ecsData) {
         body = modifyDNSQuery(body, ecsData).buffer; // Convert back to ArrayBuffer 
@@ -259,26 +288,64 @@ async function dns_query_post(request) {
 
     return fetch(URL_UPSTREAM_DNS_QUERY, {
         method: "POST",
-        headers: { "content-type": contype },
+        headers: { "content-type": APPL_DNS_MSG },
         body: body
     });
 }
 
-async function handleRequest(request) {
-    // when res is a Promise<Response>, it reduces billed wall-time
-    // blog.cloudflare.com/workers-optimization-reduces-your-bill
-    let res;
-    const { method, headers, url } = request
-    const {searchParams, pathname} = new URL(url)
-    
-    if (method === 'POST' && pathname === '/dns-query' && headers.get('content-type') === contype) {
-        res = dns_query_post(request);
-    } else if (method === 'GET' && pathname === '/resolve' && searchParams.has('name')) {
-        res = dns_resolve_googlejson(request);
-    } else if (method === 'GET' && pathname === '/dns-query' && searchParams.has('dns')) {
-        res = dns_query_get(request);
-    } else {
-        res = new Response(null, {status: 404});
+/**
+ * Normalizes the headers by converting all header keys to lowercase.
+ *
+ * @param {Headers} requestHeaders - The original headers from the request.
+ * @returns {Headers} - A new Headers object with all keys in lowercase.
+ */
+function normalizeHeaders(requestHeaders) {
+    const headers = new Headers();
+    for (const [key, value] of requestHeaders) {
+        headers.set(key.toLowerCase(), value);
     }
-    return res;
+    return headers;
+}
+
+/**
+ * Routes the incoming request based on the HTTP method, pathname, headers, and search parameters.
+ * Routes to:
+ *            /dns-query (POST) with Content-Type: application/dns-message
+ *            /resolve   (GET)  with       Accept: application/dns-json
+ *            /dns-query (GET)  with       Accept: application/dns-message
+ * Returns 404 if the request does not match any of the above routes.
+ *
+ * @param {string} method - The HTTP method of the request (e.g., 'GET', 'POST').
+ * @param {string} pathname - The pathname of the request URL.
+ * @param {Headers} headers - The headers of the request.
+ * @param {URLSearchParams} searchParams - The search parameters of the request URL.
+ * @param {Request} request - The original request object.
+ * @returns {Promise<Response>} - A promise that resolves to a Response object.
+ */
+function routeRequest(method, pathname, headers, searchParams, request) {
+    if (       method === 'POST' && pathname === '/dns-query' && headers.get('content-type') === APPL_DNS_MSG) {
+        return dns_query_post(request);
+    } else if (method === 'GET'  && pathname === '/resolve'   && headers.get('accept') === APPL_DNS_JSON && searchParams.has('name')) {
+        return dns_resolve_googlejson(request);
+    } else if (method === 'GET'  && pathname === '/dns-query' && headers.get('accept') === APPL_DNS_MSG  && searchParams.has('dns')) {
+        return dns_query_get(request);
+    } else {
+        return new Response(null, { status: 404 });
+    }
+}
+
+/**
+ * Handles incoming HTTP requests and routes them based on the request method, URL path, and headers.
+ *
+ * @param {Request} request - The incoming HTTP request object.
+ * @returns {Promise<Response>} - A promise that resolves to the appropriate HTTP response.
+ */
+async function handleRequest(request) {
+  // Returning a Promise<Response> allows the worker to yield control back to the runtime
+  // while waiting for the fetch to complete, reducing the billed wall-time.
+  const { headers } = normalizeHeaders(request.headers);
+  const { method, url } = request;
+  const { searchParams, pathname } = new URL(url);
+
+  return routeRequest(method, pathname, headers, searchParams, request);
 }
