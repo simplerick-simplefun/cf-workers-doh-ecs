@@ -12,9 +12,12 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 
 **With auto-ECS feature, DNS Proxy will be able to produce DNS response that is geographically close to IP of the actual client.**
 
+**WARNING:** Designed to be completely compatible with [Google Public DNS](https://developers.google.com/speed/public-dns/docs/secure-transports) as upstream. Outcomes may vary when using other public DNS providers as upstream.
+
 ## Features:
-- Automatically send EDNS Client Subnet (ECS) with DoH request to upstream DoH service. Uses end-user client's IP (the client IP sending DoH request to the DNS Proxy) as base for the subnet.
-  - Subnet: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
+- Automatically attach EDNS Client Subnet (ECS) field when proxying DoH request to upstream DoH service. Use end-user's IP (the IP sending DoH request to the DNS Proxy) as base for the subnet.
+  - Subnet Prefix: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
+  - Does not add/change ECS field when proxied DoH request already contains ECS field.
   - Note that not all public DNS services suppt DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
 - Supports DoH with:
   - [GET /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
@@ -30,5 +33,5 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 - **Code Base**:
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
-- **Chatgpt**
-  - For completing the code while I had abusolutely no knowledge/experirence in Javascript at all.
+- ~~**Chatgpt**~~
+  - ~~For being a stupid but somewhat useful helper.~~
