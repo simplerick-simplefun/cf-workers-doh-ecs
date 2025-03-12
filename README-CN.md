@@ -33,5 +33,5 @@
 - **代码库**：
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
-- **Chatgpt**
-  - 在我完全没有 JavaScript 知识和经验的情况下，完成了代码。
+- ~~**Chatgpt**~~
+  - ~~作为一个愚蠢但有点用的助手~~
