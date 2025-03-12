@@ -1,8 +1,8 @@
-//// Change your DoH upstream here ////
-const URL_UPSTREAM_DNS_QUERY = 'https://dns.google/dns-query';
-const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
-//// Change your DoH upstream here ////
+//// CHANGE UPSTREAM DoH service provider here ////
+const UPSTREAM_DNS_URL = 'https://dns.google';
+//// CHANGE UPSTREAM DoH service provider here ////
 
+// Constants for Content-Type and Accept headers
 const APPL_DNS_MSG = 'application/dns-message'
 const APPL_DNS_JSON = 'application/dns-json'
 
@@ -248,7 +248,7 @@ async function dns_query_get(request) {
         params.set("dns", encodeBase64Url(newBuffer));
     }
 
-    let url = `${URL_UPSTREAM_DNS_QUERY}?${params.toString()}`;
+    const url = `${UPSTREAM_DNS_URL}/dns-query?${params.toString()}`;
     return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_MSG } });
 }
 
@@ -268,7 +268,7 @@ async function dns_resolve_googlejson(request) {
       }
     }
     
-    let url = `${URL_UPSTREAM_RESOLVE}?${params.toString()}`;
+    const url = `${UPSTREAM_DNS_URL}/resolve?${params.toString()}`;
     return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_JSON } });
 }
 
@@ -278,17 +278,17 @@ async function dns_resolve_googlejson(request) {
 * @returns {Promise<Response>}
 */
 async function dns_query_post(request) {
-    let body = await request.arrayBuffer(); // Get raw binary DNS request
+    let requestBody = await request.arrayBuffer(); // Get raw binary DNS request
 
     let ecsData = getECSData(request);
     if (ecsData) {
-        body = modifyDNSQuery(body, ecsData).buffer; // Convert back to ArrayBuffer 
+      requestBody = modifyDNSQuery(requestBody, ecsData).buffer; // Convert back to ArrayBuffer 
     }
 
-    return fetch(URL_UPSTREAM_DNS_QUERY, {
+    return fetch(`${UPSTREAM_DNS_URL}/dns-query`, {
         method: "POST",
         headers: { "content-type": APPL_DNS_MSG },
-        body: body
+        body: requestBody
     });
 }
 
