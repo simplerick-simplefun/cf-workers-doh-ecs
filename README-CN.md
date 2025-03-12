@@ -17,7 +17,7 @@ ECS 对于 DNS 代理 特别有用，因为通常 DNS 代理 会生成一个地�
 ## 功能：
 - DoH 请求发送到上游 DoH 服务时，自动附加 EDNS 客户端子网（ECS）。使用实际终端用户客户端的 IP（即向 DNS 代理发送 DoH 请求的客户端 IP）作为子网的基础。
   - 子网：IPv4 为 /24，IPv6 为 /56，最后几位数会被置为零。
-  - 如果 DoH 请求已包含 ECS 字段，则不会添加或更改 ECS 字段。
+  - 如果代理的 DoH 请求已包含 ECS 字段，则不会添加或更改 ECS 字段。
   - 请注意，并非所有公共 DNS 服务都支持 ECS。Google DoH 支持 ECS，因此默认设置为 Google。请查看 [公共 DNS 服务](https://github.com/curl/curl/wiki/DNS-over-HTTPS) 以了解其他公共 DNS 服务。
 - 支持 DoH：
   - [GET /dns-query](https://developers.google.com/speed/public-dns/docs/doh?hl=zh-cn#methods)
