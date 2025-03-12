@@ -107,7 +107,7 @@ async function dns_query_get(request) {
 
   let ecsData = getECSData(request);
   if (ecsData) {
-      params.append("edns_client_subnet", `${ecsData.subnet}/${ecsData.prefix}`);
+      params.set("edns_client_subnet", `${ecsData.subnet}/${ecsData.prefix}`);
   }
 
   let url = `${URL_UPSTREAM_DNS_QUERY}?${params.toString()}`;
