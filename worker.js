@@ -39,12 +39,11 @@ function truncateIPv6To56(ipv6) {
   // Ensure each segment is 4 digits long, pad with 0s if needed
   segments = segments.map(seg => seg.padStart(4, '0'));
 
-  // Keep first 5 segments, truncate the 5th segment's last two characters to "00"
-  const truncatedSegments = segments.slice(0, 5);
-  truncatedSegments[4] = truncatedSegments[4].slice(0, 2) + '00'; // Modify the last 2 digits of the 5th segment
+  // truncate the 5th segment's last two characters to "00"
+  segments[4] = segments[4].slice(0, 2) + '00'; // Modify the last 2 digits of the 5th segment
 
-  // Rejoin the segments and add the trailing 0s
-  return truncatedSegments.join(':') + ':0000:0000:0000';
+  // Keep first 5 segments, rejoin the segments and add the trailing 0s
+  return segments.slice(0, 5).join(':') + ':0000:0000:0000';
 }
 
 /**
@@ -343,7 +342,7 @@ function routeRequest(method, pathname, headers, searchParams, request) {
 async function handleRequest(request) {
   // Returning a Promise<Response> allows the worker to yield control back to the runtime
   // while waiting for the fetch to complete, reducing the billed wall-time.
-  const { headers } = normalizeHeaders(request.headers);
+  const headers = normalizeHeaders(request.headers);
   const { method, url } = request;
   const { searchParams, pathname } = new URL(url);
 
