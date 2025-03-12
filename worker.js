@@ -99,25 +99,16 @@ function encodeECStoBuffer(family, subnet, prefixLength) {
   let addressLength = prefixLength / 8;                // Number of bytes(octects) to keep according to prefix length
   addressBytes = addressBytes.slice(0, addressLength); // Address (truncated address to prefix length)
 
-  // EDNS Client Subnet structure:
-  // Option Code (2 bytes) - 8 for ECS
-  // Option Length (2 bytes) - Length of the option data (excluding Option Code
-  // Address Family (2 bytes) - 1 for IPv4, 2 for IPv6
-  // Source Prefix Length (1 byte)
-  // Scope Prefix Length (1 byte) - Usually set to 0
-  // Address (truncated to prefix length)
-
   // Create buffer for header + truncated address
-
   let ecsLength = 8 + addressBytes.length;
   let ecsBuffer = new Uint8Array(ecsLength);
-
-  ecsBuffer.set([
+  
+  ecsBuffer.set([                                      // EDNS Client Subnet structure:
       0x00, 0x08,                                      // uint16::Option Code = 8 (ECS)
       (ecsLength - 4) >> 8, (ecsLength - 4) & 0xff,    // uint16::Option Length
       (family >> 8) & 0xff, family & 0xff,             // uint16::Address Family (1 = IPv4, 2 = IPv6)
       prefixLength, 0x00,                              // uint8::Source Prefix Length, uint8::Scope Prefix Length (always 0)
-      ...addressBytes                                  // variable_length::Address bytes
+      ...addressBytes                                  // variable_length::Address bytes (truncated to prefix length)
   ]);
 
   return ecsBuffer;
