@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 ## install q at:
 ## https://github.com/natesales/q
 
