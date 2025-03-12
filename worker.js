@@ -113,11 +113,11 @@ function encodeECStoBuffer(family, subnet, prefixLength) {
   let ecsBuffer = new Uint8Array(ecsLength);
 
   ecsBuffer.set([
-      0x00, 0x08,                                      // Option Code = 8 (ECS)
-      (ecsLength - 4) >> 8, (ecsLength - 4) & 0xff,    // Option Length
-      (family >> 8) & 0xff, family & 0xff,             // Address Family (1 = IPv4, 2 = IPv6)
-      prefixLength, 0x00,                              // Source Prefix Length, Scope Prefix Length (always 0)
-      ...addressBytes                                  // Address bytes
+      0x00, 0x08,                                      // uint16::Option Code = 8 (ECS)
+      (ecsLength - 4) >> 8, (ecsLength - 4) & 0xff,    // uint16::Option Length
+      (family >> 8) & 0xff, family & 0xff,             // uint16::Address Family (1 = IPv4, 2 = IPv6)
+      prefixLength, 0x00,                              // uint8::Source Prefix Length, uint8::Scope Prefix Length (always 0)
+      ...addressBytes                                  // variable_length::Address bytes
   ]);
 
   return ecsBuffer;
