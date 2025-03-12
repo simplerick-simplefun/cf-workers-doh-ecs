@@ -30,5 +30,5 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 - **Code Base**:
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
-- **Chatgpt**
-  - For completing the code while I had abusolutely no knowledge/experirence in Javascript at all.
+- ~~**Chatgpt**~~
+  - ~~For being a stupid but somewhat useful helper.~~
