@@ -15,9 +15,9 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 **WARNING:** Designed to be completely compatible with [Google Public DNS](https://developers.google.com/speed/public-dns/docs/secure-transports) as upstream. Outcomes may vary when using other public DNS providers as upstream.
 
 ## Features:
-- Automatically send EDNS Client Subnet (ECS) with DoH request to upstream DoH service. Uses end-user client's IP (the client IP sending DoH request to the DNS Proxy) as base for the subnet.
+- Automatically attach EDNS Client Subnet (ECS) field when proxying DoH request to upstream DoH service. Use end-user's IP (the IP sending DoH request to the DNS Proxy) as base for the subnet.
   - Subnet: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
-  - Does not add/change ECS field if DoH request already contains ECS field.
+  - Does not add/change ECS field when proxied DoH request already contains ECS field.
   - Note that not all public DNS services suppt DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
 - Supports DoH with:
   - [GET /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
