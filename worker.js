@@ -1,5 +1,6 @@
 //// CHANGE UPSTREAM DoH service provider here ////
-const UPSTREAM_DNS_URL = 'https://dns.google';
+const URL_UPSTREAM_DNS_QUERY = 'https://dns.google/dns-query';
+const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
 //// CHANGE UPSTREAM DoH service provider here ////
 
 // Constants for Content-Type and Accept headers
@@ -239,7 +240,7 @@ async function dns_query_get(request) {
         params.set("dns", encodeBase64Url(newBuffer));
     }
 
-    const url = `${UPSTREAM_DNS_URL}/dns-query?${params.toString()}`;
+    const url = `${URL_UPSTREAM_DNS_QUERY}?${params.toString()}`;
     return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_MSG } });
 }
 
@@ -259,7 +260,7 @@ async function dns_resolve_googlejson(request) {
       }
     }
     
-    const url = `${UPSTREAM_DNS_URL}/resolve?${params.toString()}`;
+    const url = `${URL_UPSTREAM_RESOLVE}?${params.toString()}`;
     return fetch(url, { method: "GET", headers: { "accept": APPL_DNS_JSON } });
 }
 
@@ -276,7 +277,7 @@ async function dns_query_post(request) {
       requestBody = modifyDNSQuery(requestBody, ecsData).buffer; // Convert back to ArrayBuffer 
     }
 
-    return fetch(`${UPSTREAM_DNS_URL}/dns-query`, {
+    return fetch(URL_UPSTREAM_DNS_QUERY, {
         method: "POST",
         headers: { "content-type": APPL_DNS_MSG },
         body: requestBody
