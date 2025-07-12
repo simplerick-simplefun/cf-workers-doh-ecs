@@ -7,6 +7,19 @@ const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
 const APPL_DNS_MSG = 'application/dns-message'
 const APPL_DNS_JSON = 'application/dns-json'
 
+
+// **IMPORTANT**: RECOMMEND TO MAKE CHANGE
+// Constants for query url path
+// Modify them to prevent GFW sniffing and blocking your dns proxy cf-worker service 
+// Example:
+//   default:   https://cfworker.user.workers.dev/dns-query?XXXXX
+//   modified:  https://cfworker.user.workers.dev/masked-dns-query?XXXXX
+
+//   default:   https://cfworker.user.workers.dev/resolve?YYYYY
+//   modified:  https://cfworker.user.workers.dev/masked-resolve?YYYYY
+const REQ_QUERY_PATHNAME = 'dns-query'
+const REQ_RESOLVE_PATHNAME = 'resolve'
+
 // developers.cloudflare.com/workers/runtime-apis/fetch-event/#syntax-module-worker
 export default {
     async fetch(r, env, ctx) {
@@ -314,11 +327,11 @@ function normalizeHeaders(requestHeaders) {
  * @returns {Promise<Response>} - A promise that resolves to a Response object.
  */
 function routeRequest(method, pathname, headers, searchParams, request) {
-    if (       method === 'POST' && pathname === '/dns-query' && headers.get('content-type') === APPL_DNS_MSG) {
+    if (       method === 'POST' && pathname === REQ_QUERY_PATHNAME   && headers.get('content-type') === APPL_DNS_MSG) {
         return dns_query_post(request);
-    } else if (method === 'GET'  && pathname === '/resolve'   && headers.get('accept') === APPL_DNS_JSON && searchParams.has('name')) {
+    } else if (method === 'GET'  && pathname === REQ_RESOLVE_PATHNAME && headers.get('accept') === APPL_DNS_JSON && searchParams.has('name')) {
         return dns_resolve_googlejson(request);
-    } else if (method === 'GET'  && pathname === '/dns-query' && headers.get('accept') === APPL_DNS_MSG  && searchParams.has('dns')) {
+    } else if (method === 'GET'  && pathname === REQ_QUERY_PATHNAME   && headers.get('accept') === APPL_DNS_MSG  && searchParams.has('dns')) {
         return dns_query_get(request);
     } else {
         return new Response(null, { status: 404 });

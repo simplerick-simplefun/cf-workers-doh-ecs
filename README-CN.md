@@ -27,7 +27,9 @@ ECS 对于 DNS 代理 特别有用，因为通常 DNS 代理 会生成一个地�
 ## 安装
 - 注册一个免费的 [Cloudflare Workers](https://workers.cloudflare.com/) 账户，创建一个新的 Worker，将脚本替换为 [index.js](/index.js) 的内容，部署 Worker，就完成了。
 - 修改 **"URL_UPSTREAM_DNS_QUERY"** **"URL_UPSTREAM_RESOLVE"**，以切换到其他上游 DNS 服务提供商。
-- 对于中国大陆用户：你可能需要一个自定义域名来绕过 GFW。Cloudflare Worker 的默认域名在你所在的地区可能会被封锁。
+- 对于中国大陆用户：
+  - 你可能需要一个自定义域名来绕过 GFW。Cloudflare Worker 的默认域名在你所在的地区可能会被封锁。
+  - **高度建议：**修改你的 DNS query path，防止 GFW 嗅探封锁。参考常量 **"REQ_QUERY_PATHNAME"** 和 **"REQ_RESOLVE_PATHNAME"**。
 
 ## 限制：
 - 由于 DNS 代理部署在 Cloudflare Workers 上（以及可能其他无服务器服务），它只能通过域名访问。在这种部署方式下，无法通过 "https://ip" 访问 DNS 代理。

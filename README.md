@@ -27,7 +27,9 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 ## Installation
 - Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [index.js](/index.js), deploy the worker, and you're done.
 - Modify **"URL_UPSTREAM_DNS_QUERY"** **"URL_UPSTREAM_RESOLVE"** to switch to other upstream DNS service providers.
-- For Mainland China users: you might need a custom domain to bypass GFW. Cloudflare Worker's default domain name might be banned in your region. 
+- For Mainland China users:
+  - you might need a custom domain to bypass GFW. Cloudflare Worker's default domain name might be banned in your region.
+  - **HIGHLY RECOMMENDED:** change your dns query url path to prevent GFW sniffing&blocking. Refer to constants **"REQ_QUERY_PATHNAME"** and **"REQ_RESOLVE_PATHNAME"**
 
 ## Limitations:
 - Since the DNS Proxy is deployed on Cloudflare Workers (and possibly other server-less services), it can only be accessed through domain name. Accessing the DNS Proxy with "https://ip" is not possible in this kind of deployment.
