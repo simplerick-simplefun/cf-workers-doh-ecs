@@ -2,15 +2,17 @@
 
 [中文版 README ](https://github.com/simplerick-simplefun/cf-workers-doh/blob/main/README-CN.md)
 
-**A DNS-over-HTTPS Proxy with auto ECS feature**
+**A DNS-over-HTTPS Proxy with "Auto ECS" feature**
 
-Proxy DoH (DNS-over-HTTPS) with Auto ECS (EDNS Client Subnet) on Cloudflare Workers.
+Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Workers.
 
-DNS DoH request with ECS produces DNS response that give accurate geo-located responses to the subnet specified in ECS when responding to name lookups. Refer to [https://developers.google.com/speed/public-dns/docs/ecs](https://developers.google.com/speed/public-dns/docs/ecs).
+- **`ECS:`** DNS DoH request with ECS produces DNS response that give accurate geo-located responses to the subnet specified in ECS when responding to name lookups. Refer to [https://developers.google.com/speed/public-dns/docs/ecs](https://developers.google.com/speed/public-dns/docs/ecs).
 
-This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS response that is geographically close to IP of the DNS Proxy, not the IP of the actual client sending DNS query/request (to DNS Proxy).
+> This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS response that is geographically close to IP of the DNS Proxy, not the IP of the actual client sending DNS query/request (to DNS Proxy).
 
-**With auto-ECS feature, DNS Proxy will be able to produce DNS response that is geographically close to IP of the actual client.**
+- **`Auto ECS:`** Automatically attach end-user's IP as EDNS Client Subnet (ECS) when proxying DoH request to upstream DoH service. 
+
+**With "Auto ECS" feature, DNS Proxy will be able to produce DNS response geographically close to IP of the actual client.**
 
 **WARNING:** Designed to be completely compatible with [Google Public DNS](https://developers.google.com/speed/public-dns/docs/secure-transports) as upstream. Outcomes may vary when using other public DNS providers as upstream.
 
@@ -18,8 +20,8 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 - Automatically attach EDNS Client Subnet (ECS) field when proxying DoH request to upstream DoH service. Use end-user's IP (the IP sending DoH request to the DNS Proxy) as base for the subnet.
   - Subnet Prefix: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
   - Does not add/change ECS field when proxied DoH request already contains ECS field.
-  - Note that not all public DNS services suppt DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
-- Supports DoH with:
+  - Note that not all public DNS services support DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
+- Supporting DoH methods:
   - [GET /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [POST /dns-query](https://developers.google.com/speed/public-dns/docs/doh#methods)
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json)
@@ -28,7 +30,7 @@ This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS respon
 - Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [index.js](/index.js), deploy the worker, and you're done.
 - Modify **"URL_UPSTREAM_DNS_QUERY"** **"URL_UPSTREAM_RESOLVE"** to switch to other upstream DNS service providers.
 - For Mainland China users:
-  - you might need a custom domain to bypass GFW. Cloudflare Worker's default domain name might be banned in your region.
+  - you might need a custom domain to bypass GFW. Cloudflare Workers' default domain name might be banned in your region.
   - **HIGHLY RECOMMENDED:** change your dns query url path to prevent GFW sniffing&blocking. Refer to constants **"REQ_QUERY_PATHNAME"** and **"REQ_RESOLVE_PATHNAME"**
 
 ## Limitations:
