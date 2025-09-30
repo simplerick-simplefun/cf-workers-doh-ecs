@@ -2,23 +2,22 @@
 
 [中文版 README ](https://github.com/simplerick-simplefun/cf-workers-doh/blob/main/README-CN.md)
 
-**A DNS-over-HTTPS Proxy with "Auto ECS" feature**
+## **A DNS-over-HTTPS Proxy with "Auto ECS" feature**
 
 Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Workers.
 
 - **`ECS:`** DNS DoH request with ECS produces DNS response that give accurate geo-located responses to the subnet specified in ECS when responding to name lookups. Refer to [https://developers.google.com/speed/public-dns/docs/ecs](https://developers.google.com/speed/public-dns/docs/ecs).
+> This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS response that is geographically close to *__IP of the DNS Proxy__*, not the *__IP of the actual client__* sending DNS query/request (to DNS Proxy).
 
-> This is especially useful in DNS Proxy, as normally DNS Proxy produce DNS response that is geographically close to IP of the DNS Proxy, not the IP of the actual client sending DNS query/request (to DNS Proxy).
+- **`Auto ECS:`** Automatically attach _end-user's IP_ as EDNS Client Subnet (ECS) when proxying DoH request to upstream DoH service. 
 
-- **`Auto ECS:`** Automatically attach end-user's IP as EDNS Client Subnet (ECS) when proxying DoH request to upstream DoH service. 
+**With "Auto ECS" feature, DNS Proxy will be able to produce DNS response geographically close to _IP of the actual client_.**
 
-**With "Auto ECS" feature, DNS Proxy will be able to produce DNS response geographically close to IP of the actual client.**
-
-**WARNING:** Designed to be completely compatible with [Google Public DNS](https://developers.google.com/speed/public-dns/docs/secure-transports) as upstream. Outcomes may vary when using other public DNS providers as upstream.
+**WARNING:** Designed to be completely compatible with [Google Public DNS](https://developers.google.com/speed/public-dns/docs/secure-transports) as upstream. Outcomes may vary when using other DNS providers as upstream.
 
 ## Features:
 - Automatically attach EDNS Client Subnet (ECS) field when proxying DoH request to upstream DoH service. Use end-user's IP (the IP sending DoH request to the DNS Proxy) as base for the subnet.
-  - Subnet Prefix: /24 for ipv4 and /56 for ipv6, last digits are zeroed out.
+  - Subnet Prefix: IPv4 /24  IPv6 /56, last digits are zeroed out.
   - Does not add/change ECS field when proxied DoH request already contains ECS field.
   - Note that not all public DNS services support DoH with ECS. Google DoH supports ECS and is therefore set as default. Check [Public DNS Services](https://github.com/curl/curl/wiki/DNS-over-HTTPS) to see other public DNS services.
 - Supporting DoH methods:
@@ -40,5 +39,3 @@ Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Wo
 - **Code Base**:
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
-- ~~**Chatgpt**~~
-  - ~~For being a stupid but somewhat useful helper.~~
