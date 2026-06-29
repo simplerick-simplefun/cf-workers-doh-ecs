@@ -1,0 +1,45 @@
+name: Build FastEdge Wasm
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # Allows you to trigger the build manually
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm' # Automatically caches node_modules if package-lock.json exists
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            npm install
+          else
+            npm init -y
+            npm install @gcoredev/fastedge-sdk
+            npm install --save-dev @gcoredev/fastedge-js-compiler
+          fi
+
+      - name: Compile JS to WebAssembly
+        run: |
+          npx fastedge-js-compiler -i gcore-fastedge.js -o gcore-fastedge.wasm
+
+      - name: Upload Wasm Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastedge-binary
+          path: gcore-fastedge.wasm
+          if-no-files-found: error
