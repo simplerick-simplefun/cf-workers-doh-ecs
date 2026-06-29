@@ -28,8 +28,15 @@ addEventListener('fetch', (event) => {
 async function handleRequest(request) {
     try {
         const headers = normalizeHeaders(request.headers);
-        const method = request.method;
-        const urlObj = new URL(request.url);
+        const method = request.method || 'GET';
+        
+        // SAFE URL PARSING: Handle potential relative request paths
+        let urlStr = request.url || '/';
+        if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+            urlStr = 'https://local-edge.internal' + (urlStr.startsWith('/') ? '' : '/') + urlStr;
+        }
+        
+        const urlObj = new URL(urlStr);
         const pathname = urlObj.pathname;
         const searchParams = urlObj.searchParams;
 
@@ -53,7 +60,7 @@ async function routeRequest(method, pathname, headers, searchParams, request) {
     } else if (method === 'GET' && pathname === REQ_QUERY_PATHNAME && headers.get('accept') === APPL_DNS_MSG && searchParams.has('dns')) {
         return await dns_query_get(request, searchParams);
     } else {
-        return new Response(null, { status: 404 });
+        return new Response('Not Found', { status: 404 });
     }
 }
 
@@ -73,7 +80,6 @@ async function dns_query_get(request, params) {
             let newBuffer = modifyDNSQuery(origBuffer, ecsData);
             params.set("dns", encodeBase64Url(newBuffer));
         } catch (e) {
-            // If binary manipulation fails, fallback gracefully or report error
             return new Response(`DNS decoding failure: ${e.message}`, { status: 400 });
         }
     }
@@ -155,9 +161,15 @@ function truncateIPv6To56(ipv6) {
  * Encodes an IP address and prefix length into an EDNS Client Subnet (ECS) buffer.
  */
 function encodeECStoBuffer(family, subnet, prefixLength) {
-    let addressBytes;
+    let addressBytes = [];
     if (family === 2) {
-        addressBytes = subnet.split(':').flatMap(part => part.match(/../g).map(b => parseInt(b, 16)));
+        let parts = subnet.split(':');
+        for (let i = 0; i < parts.length; i++) {
+            let part = parts[i];
+            // Split 4 hex chars into 2 pairs safely without regex match()
+            addressBytes.push(parseInt(part.slice(0, 2), 16));
+            addressBytes.push(parseInt(part.slice(2, 4), 16));
+        }
     } else {
         addressBytes = subnet.split('.').map(n => parseInt(n, 10));
     }
@@ -319,8 +331,10 @@ function modifyDNSQuery(originalArrayBuffer, ecsData) {
 
 function normalizeHeaders(requestHeaders) {
     const headers = new Headers();
-    for (const [key, value] of requestHeaders) {
-        headers.set(key.toLowerCase(), value);
+    if (requestHeaders) {
+        for (const [key, value] of requestHeaders) {
+            headers.set(key.toLowerCase(), value);
+        }
     }
     return headers;
 }
