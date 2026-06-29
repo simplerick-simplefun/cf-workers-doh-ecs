@@ -1,4 +1,4 @@
-import { HTTPRequest, HTTPResponse } from "@gcoredev/fastedge-sdk";
+import { getEnv } from 'fastedge::env'; // If you want to use environment variables later
 
 //// CHANGE UPSTREAM DoH service provider here ////
 const URL_UPSTREAM_DNS_QUERY = 'https://dns.google/dns-query';
@@ -10,63 +10,47 @@ const APPL_DNS_MSG = 'application/dns-message';
 const APPL_DNS_JSON = 'application/dns-json';
 
 // Constants for query url path
-const REQ_QUERY_PATHNAME = '/dns-query';
+const REQ_QUERY_PATHNAME = '/clean-dns-query';
 const REQ_RESOLVE_PATHNAME = '/resolve';
 
-// Register FastEdge Event Listener
-HTTPRequest.addListener(async (request) => {
-    const response = new HTTPResponse();
-    try {
-        await handleRequest(request, response);
-    } catch (error) {
-        response.status = 500;
-        response.headers.set('content-type', 'text/plain');
-        response.body = `Internal Server Error: ${error.message}`;
-        response.send();
-    }
+// Register standard Service Worker event listener
+addEventListener('fetch', (event) => {
+    event.respondWith(handleRequest(event.request));
 });
 
 /**
- * Handles incoming HTTP requests and routes them using FastEdge response patterns.
+ * Handles incoming HTTP requests and routes them.
  */
-async function handleRequest(request, response) {
-    const headers = normalizeHeaders(request.headers);
-    const method = request.method;
-    const urlObj = new URL(request.url);
-    const pathname = urlObj.pathname;
-    const searchParams = urlObj.searchParams;
+async function handleRequest(request) {
+    try {
+        const headers = normalizeHeaders(request.headers);
+        const method = request.method;
+        const urlObj = new URL(request.url);
+        const pathname = urlObj.pathname;
+        const searchParams = urlObj.searchParams;
 
-    await routeRequest(method, pathname, headers, searchParams, request, response);
+        return await routeRequest(method, pathname, headers, searchParams, request);
+    } catch (error) {
+        return new Response(`Internal Server Error: ${error.message}`, {
+            status: 500,
+            headers: { 'content-type': 'text/plain' }
+        });
+    }
 }
 
 /**
- * Routes the incoming request and streams the upstream fetch response back to FastEdge
+ * Routes the incoming request and returns the upstream fetch response
  */
-async function routeRequest(method, pathname, headers, searchParams, request, response) {
-    let upstreamResponse;
-
+async function routeRequest(method, pathname, headers, searchParams, request) {
     if (method === 'POST' && pathname === REQ_QUERY_PATHNAME && headers.get('content-type') === APPL_DNS_MSG) {
-        upstreamResponse = await dns_query_post(request);
+        return await dns_query_post(request);
     } else if (method === 'GET' && pathname === REQ_RESOLVE_PATHNAME && headers.get('accept') === APPL_DNS_JSON && searchParams.has('name')) {
-        upstreamResponse = await dns_resolve_googlejson(request, searchParams);
+        return await dns_resolve_googlejson(request, searchParams);
     } else if (method === 'GET' && pathname === REQ_QUERY_PATHNAME && headers.get('accept') === APPL_DNS_MSG && searchParams.has('dns')) {
-        upstreamResponse = await dns_query_get(request, searchParams);
+        return await dns_query_get(request, searchParams);
     } else {
-        response.status = 404;
-        response.send();
-        return;
+        return new Response(null, { status: 404 });
     }
-
-    // Map upstream fetch properties back onto the FastEdge response wrapper
-    response.status = upstreamResponse.status;
-    for (const [key, value] of upstreamResponse.headers) {
-        response.headers.set(key, value);
-    }
-    
-    // Read the upstream payload into an ArrayBuffer and assign to response body
-    const respBuffer = await upstreamResponse.arrayBuffer();
-    response.body = new Uint8Array(respBuffer);
-    response.send();
 }
 
 /**
@@ -103,7 +87,6 @@ async function dns_resolve_googlejson(request, params) {
  * Handles POST-based DoH queries with /dns-query endpoint
  */
 async function dns_query_post(request) {
-    // FastEdge request objects implement standard body reading mechanisms
     let requestBody = await request.arrayBuffer(); 
 
     let ecsData = getECSData(request);
@@ -122,11 +105,10 @@ async function dns_query_post(request) {
  * Extracts ECS (EDNS Client Subnet) data from client IP using Gcore edge headers
  */
 function getECSData(request) {
-    // Gcore passes edge client IP inside standard proxy headers like X-Real-IP
+    // Gcore forwards the client IP inside standard proxy headers
     let ip = request.headers.get("X-Real-IP") || request.headers.get("X-Forwarded-For");
     if (!ip) return null;
     
-    // Clean up potentially comma-separated X-Forwarded-For strings
     ip = ip.split(',')[0].trim();
 
     if (ip.includes(":")) { 

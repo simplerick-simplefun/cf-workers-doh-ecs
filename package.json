@@ -1,6 +1,10 @@
 {
   "name": "fastedge-doh-ecs",
   "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@gcoredev/fastedge-sdk-js": "^1.0.0" 
+  },
   "description": "[中文版 README ](https://github.com/simplerick-simplefun/cf-workers-doh/blob/main/README-CN.md)",
   "homepage": "https://github.com/simplerick-simplefun/cf-workers-doh-ecs#readme",
   "bugs": {
@@ -12,9 +16,12 @@
   },
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
   "main": "gcore-fastedge.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "devDependencies": {
+    "@gcoredev/fastedge-sdk-js": "^2.5.0"
   }
 }

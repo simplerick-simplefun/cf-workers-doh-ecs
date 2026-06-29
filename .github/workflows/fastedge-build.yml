@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm' # Automatically caches node_modules if package-lock.json exists
 
       - name: Install dependencies
@@ -29,13 +29,12 @@ jobs:
             npm install
           else
             npm init -y
-            npm install @gcoredev/fastedge-sdk
-            npm install --save-dev @gcoredev/fastedge-js-compiler
+            npm install --save-dev @gcoredev/fastedge-sdk-js
           fi
 
       - name: Compile JS to WebAssembly
         run: |
-          npx fastedge-js-compiler -i gcore-fastedge.js -o gcore-fastedge.wasm
+          npx fastedge-build -i gcore-fastedge.js -o gcore-fastedge.wasm
 
       - name: Upload Wasm Artifact
         uses: actions/upload-artifact@v4
