@@ -1,17 +1,21 @@
-import { getEnv } from 'fastedge::env'; // If you want to use environment variables later
-
-//// CHANGE UPSTREAM DoH service provider here ////
+// Constants for Upstream DoH service providers
 const URL_UPSTREAM_DNS_QUERY = 'https://dns.google/dns-query';
 const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
-//// CHANGE UPSTREAM DoH service provider here ////
 
 // Constants for Content-Type and Accept headers
 const APPL_DNS_MSG = 'application/dns-message';
 const APPL_DNS_JSON = 'application/dns-json';
 
 // Constants for query url path
-const REQ_QUERY_PATHNAME = '/clean-dns-query';
+const REQ_QUERY_PATHNAME = '/dns-query';
 const REQ_RESOLVE_PATHNAME = '/resolve';
+
+// Pure JavaScript Base64 Maps to eliminate atob/btoa dependencies
+const b64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const b64Lookup = new Uint8Array(256);
+for (let i = 0; i < b64Chars.length; i++) {
+    b64Lookup[b64Chars.charCodeAt(i)] = i;
+}
 
 // Register standard Service Worker event listener
 addEventListener('fetch', (event) => {
@@ -57,11 +61,21 @@ async function routeRequest(method, pathname, headers, searchParams, request) {
  * Handles GET-based DoH queries with /dns-query endpoint
  */
 async function dns_query_get(request, params) {
+    const dnsParam = params.get("dns");
+    if (!dnsParam) {
+        return new Response("Missing 'dns' parameter", { status: 400 });
+    }
+
     let ecsData = getECSData(request);
     if (ecsData) {
-        let origBuffer = decodeBase64Url(params.get("dns"));
-        let newBuffer = modifyDNSQuery(origBuffer, ecsData);
-        params.set("dns", encodeBase64Url(newBuffer));
+        try {
+            let origBuffer = decodeBase64Url(dnsParam);
+            let newBuffer = modifyDNSQuery(origBuffer, ecsData);
+            params.set("dns", encodeBase64Url(newBuffer));
+        } catch (e) {
+            // If binary manipulation fails, fallback gracefully or report error
+            return new Response(`DNS decoding failure: ${e.message}`, { status: 400 });
+        }
     }
 
     const url = `${URL_UPSTREAM_DNS_QUERY}?${params.toString()}`;
@@ -88,6 +102,9 @@ async function dns_resolve_googlejson(request, params) {
  */
 async function dns_query_post(request) {
     let requestBody = await request.arrayBuffer(); 
+    if (!requestBody || requestBody.byteLength === 0) {
+        return new Response("Empty query payload", { status: 400 });
+    }
 
     let ecsData = getECSData(request);
     if (ecsData) {
@@ -105,7 +122,6 @@ async function dns_query_post(request) {
  * Extracts ECS (EDNS Client Subnet) data from client IP using Gcore edge headers
  */
 function getECSData(request) {
-    // Gcore forwards the client IP inside standard proxy headers
     let ip = request.headers.get("X-Real-IP") || request.headers.get("X-Forwarded-For");
     if (!ip) return null;
     
@@ -167,15 +183,59 @@ function encodeECStoBuffer(family, subnet, prefixLength) {
     return ecsBuffer;
 }
 
-function encodeBase64Url(data) {
-    const base64 = btoa(String.fromCharCode(...data));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+// Custom Pure JavaScript Base64Url Encoder
+function encodeBase64Url(uint8Array) {
+    let len = uint8Array.length;
+    let base64 = '';
+    for (let i = 0; i < len; i += 3) {
+        let b1 = uint8Array[i];
+        let b2 = i + 1 < len ? uint8Array[i + 1] : NaN;
+        let b3 = i + 2 < len ? uint8Array[i + 2] : NaN;
+
+        let enc1 = b1 >> 2;
+        let enc2 = ((b1 & 3) << 4) | (isNaN(b2) ? 0 : b2 >> 4);
+        let enc3 = isNaN(b2) ? 64 : ((b2 & 15) << 2) | (isNaN(b3) ? 0 : b3 >> 6);
+        let enc4 = isNaN(b3) ? 64 : b3 & 63;
+
+        base64 += b64Chars.charAt(enc1) + b64Chars.charAt(enc2) +
+                  (enc3 === 64 ? '' : b64Chars.charAt(enc3)) +
+                  (enc4 === 64 ? '' : b64Chars.charAt(enc4));
+    }
+    return base64.replace(/\+/g, '-').replace(/\//g, '_');
 }
 
+// Custom Pure JavaScript Base64Url Decoder
 function decodeBase64Url(base64Url) {
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/').padEnd(base64Url.length + (4 - (base64Url.length % 4)) % 4, '=');
-    const binary = atob(base64);
-    return new Uint8Array([...binary].map(char => char.charCodeAt(0)));
+    let str = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) {
+        str += '=';
+    }
+    
+    let len = str.length;
+    let bufferLength = str.length * 0.75;
+    if (str[str.length - 1] === '=') {
+        bufferLength--;
+        if (str[str.length - 2] === '=') bufferLength--;
+    }
+
+    let bytes = new Uint8Array(bufferLength);
+    let p = 0;
+
+    for (let i = 0; i < len; i += 4) {
+        let enc1 = b64Lookup[str.charCodeAt(i)];
+        let enc2 = b64Lookup[str.charCodeAt(i + 1)];
+        let enc3 = b64Lookup[str.charCodeAt(i + 2)];
+        let enc4 = b64Lookup[str.charCodeAt(i + 3)];
+
+        bytes[p++] = (enc1 << 2) | (enc2 >> 4);
+        if (enc3 !== 64 && p < bufferLength) {
+            bytes[p++] = ((enc2 & 15) << 4) | (enc3 >> 2);
+        }
+        if (enc4 !== 64 && p < bufferLength) {
+            bytes[p++] = ((enc3 & 3) << 6) | enc4;
+        }
+    }
+    return bytes;
 }
 
 /**
