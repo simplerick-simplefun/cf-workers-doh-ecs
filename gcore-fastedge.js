@@ -10,12 +10,16 @@ const APPL_DNS_JSON = 'application/dns-json';
 const REQ_QUERY_PATHNAME = '/dns-query';
 const REQ_RESOLVE_PATHNAME = '/resolve';
 
-// Pure JavaScript Base64 Maps to eliminate atob/btoa dependencies
+// Pure JavaScript Base64 Maps - SAFELY INITIALIZED
 const b64Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const b64Lookup = new Uint8Array(256);
-for (let i = 0; i < b64Chars.length; i++) {
-    b64Lookup[b64Chars.charCodeAt(i)] = i;
-}
+
+// Immediate execution function to lock map generation and protect global context mutation
+(() => {
+    for (let i = 0; i < b64Chars.length; i++) {
+        b64Lookup[b64Chars.charCodeAt(i)] = i;
+    }
+})();
 
 // Register standard Service Worker event listener
 addEventListener('fetch', (event) => {
