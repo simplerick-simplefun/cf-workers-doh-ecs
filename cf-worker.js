@@ -7,6 +7,10 @@ const URL_UPSTREAM_RESOLVE = 'https://dns.google/resolve';
 const APPL_DNS_MSG = 'application/dns-message'
 const APPL_DNS_JSON = 'application/dns-json'
 
+// Customizable IP prefix length
+// These initial values are recommended by RFC 7871, section 11.1
+const ipv4PrefixLength = 24;
+const ipv6PrefixLength = 56;
 
 // **IMPORTANT**: RECOMMEND TO MAKE CHANGE
 // Constants for query url path
@@ -27,6 +31,29 @@ export default {
     },
 };
 
+function truncateIPv4(ip, prefixLength) {
+  const parts = ip.split(".").map(Number);
+
+  const ipInt =
+    (parts[0] << 24) |
+    (parts[1] << 16) |
+    (parts[2] << 8) |
+    (parts[3]);
+
+  const mask =
+    prefixLength === 0
+      ? 0
+      : (0xffffffff << (32 - prefixLength)) >>> 0;
+
+  const truncated = (ipInt & mask) >>> 0;
+
+  return [
+    (truncated >>> 24) & 0xff,
+    (truncated >>> 16) & 0xff,
+    (truncated >>> 8) & 0xff,
+    truncated & 0xff
+  ].join(".");
+}
 
 /**
  * Truncates an IPv6 address to its /56 prefix.
@@ -37,27 +64,39 @@ export default {
  * segments are set to "0000".
  *
  * @param {string} ipv6 - The IPv6 address to truncate.
+ * @param {Number} prefixLength - The truncate prefixLength.
  * @returns {string} - The truncated IPv6 address with a /56 prefix.
  */
-function truncateIPv6To56(ipv6) {
-  // Expand "::" to have 8 segments
-  let segments = ipv6.split(':');
+function truncateIPv6To56(ipv6, prefixLength) {
+  if (prefixLength < 0 || prefixLength > 128) {
+    throw new Error("Invalid IPv6 prefix length");
+  }
 
-  // If the address has fewer than 8 segments due to "::", fill in the missing segments
+  let segments = ipv6.split(':');
   if (segments.length < 8) {
     const missingSegments = 8 - segments.length;
     const emptySegments = new Array(missingSegments).fill('0000');
     segments.splice(segments.indexOf(''), 0, ...emptySegments);
   }
-
-  // Ensure each segment is 4 digits long, pad with 0s if needed
   segments = segments.map(seg => seg.padStart(4, '0'));
+  
+  const fullGroups = Math.floor(prefixLength / 16);
+  const remainingBits = prefixLength % 16;
 
-  // truncate the 5th segment's last two characters to "00"
-  segments[4] = segments[4].slice(0, 2) + '00'; // Modify the last 2 digits of the 5th segment
+  if (remainingBits === 0) {
+    segments[fullGroups] = '0000';
+  } else {
+    const value = parseInt(segments[fullGroups], 16);
+    const mask = (0xffff << (16 - remainingBits)) & 0xffff;
+    
+    segments[fullGroups] = (value & mask).toString(16).padStart(4, '0');
+  }
+  
+  for (let i = fullGroups + 1; i < 8; i++) {
+    segments[i] = '0000';
+  }
 
-  // Keep first 5 segments, rejoin the segments and add the trailing 0s
-  return segments.slice(0, 5).join(':') + ':0000:0000:0000';
+  return segments.join(':');
 }
 
 /**
@@ -68,13 +107,15 @@ function truncateIPv6To56(ipv6) {
 function getECSData(request) {
   let ip = request.headers.get("CF-Connecting-IP");
   if (!ip) return null;
+  
+  ip = ip.split(',')[0].trim();
 
-  if (ip.includes(":")) { // IPv6
-      let truncatedIPv6 = truncateIPv6To56(ip); // Truncate to /56
-      return { family: 2, subnet: truncatedIPv6, prefix: 56 };
-  } else { // IPv4
-      let truncatedIPv4 = ip.split(".").slice(0, 3).join(".") + ".0"; // Truncate to /24
-      return { family: 1, subnet: truncatedIPv4, prefix: 24 };
+  if (ip.includes(":")) { 
+    let truncatedIPv6 = truncateIPv6To56(ip, ipv6PrefixLength);
+    return { family: 2, subnet: truncatedIPv6, prefix: 56 };
+  } else { 
+    let truncatedIPv4 = truncateIPv4(ip, ipv4PrefixLength);
+    return { family: 1, subnet: truncatedIPv4, prefix: 24 };
   }
 }
 
@@ -96,10 +137,13 @@ function encodeECStoBuffer(family, subnet, prefixLength) {
   //            already trancated to prefix length with trailing 0s
   if (family === 2) {
       // IPv6
-      addressBytes = subnet.split(':')
-          .flatMap(part => 
-              part.match(/../g).map(b => parseInt(b, 16))
+      addressBytes = [];
+      for (const part of subnet.split(':')) {
+          addressBytes.push(
+              parseInt(part.substring(0, 2), 16),
+              parseInt(part.substring(2, 4), 16)
           );
+      }
   } else {
       // IPv4
       addressBytes = subnet.split('.').map(n => parseInt(n, 10));
@@ -114,12 +158,13 @@ function encodeECStoBuffer(family, subnet, prefixLength) {
   addressBytes = addressBytes.slice(0, addressLength); // Address (truncated address to prefix length)
 
   // Create buffer for header + truncated address
-  let ecsLength = 8 + addressBytes.length;
+  let optionLength = 4 + addressBytes.length;
+  let ecsLength = 4 + optionLength;
   let ecsBuffer = new Uint8Array(ecsLength);
   
   ecsBuffer.set([                                      // EDNS Client Subnet structure:
       0x00, 0x08,                                      // uint16::Option Code = 8 (ECS)
-      (ecsLength - 4) >> 8, (ecsLength - 4) & 0xff,    // uint16::Option Length
+      optionLength >> 8, optionLength & 0xff,    // uint16::Option Length
       (family >> 8) & 0xff, family & 0xff,             // uint16::Address Family (1 = IPv4, 2 = IPv6)
       prefixLength, 0x00,                              // uint8::Source Prefix Length, uint8::Scope Prefix Length (always 0)
       ...addressBytes                                  // variable_length::Address bytes (truncated to prefix length)
@@ -150,6 +195,58 @@ function decodeBase64Url(base64Url) {
 }
 
 
+function skipQuestion(buf, pos, count) {
+  for (let i = 0; i < count; i++) {
+    while (true) {
+      const len = buf[pos];
+      if (len === 0) {
+        pos += 1;
+        break;
+      }
+      if ((len & 0xc0) === 0xc0) {
+        // compression pointer
+        pos += 2;
+        break;
+      }
+      pos += len + 1;
+    }
+    pos += 4;
+  }
+  return pos;
+}
+function skipName(buf, pos) {
+  while (true) {
+    const len = buf[pos];
+    // End of name
+    if (len === 0) return pos + 1;
+    // DNS compression pointer: 11xxxxxx xxxxxxxx
+    if ((len & 0xc0) === 0xc0) {
+      return pos + 2; // pointer is 2 bytes total
+    }
+    // normal label
+    pos += len + 1;
+    // safety guard (prevents infinite loop on corrupted packets)
+    if (pos >= buf.length) {
+      throw new Error("Malformed DNS name (out of bounds)");
+    }
+  }
+}
+function skipRR(buf, pos) {
+  pos = skipName(buf, pos);
+
+  const rdlen = (buf[pos + 8] << 8) | buf[pos + 9];
+  pos += 10;   // TYPE+CLASS+TTL+RDLEN, move to RDATA
+  pos += rdlen;  // skip RDATA
+
+  return pos;
+}
+function skipSection(buf, pos, count) {
+  for (let i = 0; i < count; i++) {
+    pos = skipRR(buf, pos);
+  }
+  return pos;
+}
+
 /**
 * Modifies a raw binary DNS query to include an ECS (EDNS Client Subnet) option
 * Does not modify original buffer if it already contains an ECS option
@@ -159,83 +256,101 @@ function decodeBase64Url(base64Url) {
 * @returns {Uint8Array} Modified DNS query
 */
 function modifyDNSQuery(originalArrayBuffer, ecsData) {
-    if (!originalArrayBuffer || originalArrayBuffer.byteLength === 0) {
-        throw new Error('Invalid DNS query data');
-    }
+  if (!originalArrayBuffer || originalArrayBuffer.byteLength === 0) {
+    throw new Error('Invalid DNS query data');
+  }
 
-    const OPT_TYPE = 41; // EDNS OPT record type
-    const ECS_OPTION_CODE = 0x08;
+  const OPT_TYPE = 41; // EDNS OPT record type
+  const ECS_OPTION_CODE = 0x08;
 
-    let originalBuffer = new Uint8Array(originalArrayBuffer); // Convert to Uint8Array
-    let offset = 12;
-    let qdcount = (originalBuffer[4] << 8) | originalBuffer[5];
-    let arcount = (originalBuffer[10] << 8) | originalBuffer[11];
+  let originalBuffer = new Uint8Array(originalArrayBuffer); // Convert to Uint8Array
+  let qdcount = (originalBuffer[4] << 8) | originalBuffer[5];
+  let ancount = (originalBuffer[6] << 8) | originalBuffer[7];
+  let nscount = (originalBuffer[8] << 8) | originalBuffer[9];
+  let arcount = (originalBuffer[10] << 8) | originalBuffer[11];
 
-    for (let i = 0; i < qdcount; i++) {
-        while (originalBuffer[offset] !== 0) offset++;
-        offset += 5; // Skip the end of QNAME + QTYPE + QCLASS
-    }
+  let pos = 12;
+  pos = skipQuestion(originalBuffer, pos, qdcount); // skip QD
+  pos = skipSection(originalBuffer, pos, ancount); // skip AN
+  pos = skipSection(originalBuffer, pos, nscount); // skip NS
+  
+  // prepare variables for OPT identification and ECS injection
+  let hasOPT = false;
+  let hasECS = false;
+  let rdlen;
+  let rdlenPos;
+  let nextRRPos;
 
-    let addOffset = offset;
-    let hasOPT = false;
-    let hasECS = false;
-
-    for (let i = 0; i < arcount; i++) {
-        let pos = addOffset;
-        while (originalBuffer[pos] !== 0) pos++;
-        pos++;
-        let type = (originalBuffer[pos] << 8) | originalBuffer[pos + 1];
-        if (type === OPT_TYPE) {
-            hasOPT = true;
-
-            // Check if the OPT record already contains an ECS option
-            let optPos = pos + 10;
-            while (optPos < originalBuffer.length) {
-                let optionCode = (originalBuffer[optPos] << 8) | originalBuffer[optPos + 1];
-                if (optionCode === ECS_OPTION_CODE) {
-                    hasECS = true;
-                    break;
-                }
-                let optionLength = (originalBuffer[optPos + 2] << 8) | originalBuffer[optPos + 3];
-                optPos += 4 + optionLength;
-            }
-
-            break;
+  // traverse AR
+  for (let i = 0; i < arcount; i++) {
+    // Data Structure(RR): NAME+TYPE(2)+CLASS(2)+TTL(4)+RDLEN(2)+RDATA...
+    // NAME is either 'Plain label sequence' (variable length)
+    //       or 'Compressed pointer'  (2 bytes)
+    //       or 'Single zero octet'  (1 byte)
+    
+    // pos now at NAME[0]
+    pos = skipName(originalBuffer, pos);
+    // pos now at TYPE[0]
+    rdlenPos = pos + 8;
+    let rdataPos = rdlenPos + 2;
+    rdlen = (originalBuffer[rdlenPos] << 8) | originalBuffer[rdlenPos + 1];
+    nextRRPos = rdataPos + rdlen; // skip RDATA and move to next RR
+    
+    let arType = (originalBuffer[pos] << 8) | originalBuffer[pos + 1];
+    // check for $hasOPT and $hasECS
+    if (arType === OPT_TYPE) {
+      hasOPT = true;
+      // Check if the OPT record already contains an ECS option
+      while (rdataPos + 4 < nextRRPos) {
+        let optionCode = (originalBuffer[rdataPos] << 8) | originalBuffer[rdataPos + 1];
+        if (optionCode === ECS_OPTION_CODE) {
+          hasECS = true;
+          break; // if found ECS, stop the loop "traverse OPT"
         }
-        addOffset = pos + 10 + ((originalBuffer[pos + 8] << 8) | originalBuffer[pos + 9]);
+        let optionLength = (originalBuffer[rdataPos + 2] << 8) | originalBuffer[rdataPos + 3];
+        rdataPos += (4 + optionLength);
+      }
+      break; // if found OPT, stop the loop "traverse AR"
     }
+    // move to next RR
+    pos = nextRRPos;
+  }
 
-    if (hasECS) {
-        return originalBuffer;
-    }
+  if (hasECS) {
+    return originalBuffer;
+  }
 
-    let ecsBuffer = encodeECStoBuffer(ecsData.family, ecsData.subnet, ecsData.prefix);
-    let newBuffer;
+  let ecsBuffer = encodeECStoBuffer(ecsData.family, ecsData.subnet, ecsData.prefix);
+  let newBuffer;
 
-    if (hasOPT) {
-        // If an OPT record already exists, append ECS data to it
-        newBuffer = new Uint8Array(originalBuffer.length + ecsBuffer.length);
-        newBuffer.set(originalBuffer.subarray(0, addOffset + 10), 0);
-        newBuffer.set(ecsBuffer, addOffset + 10);
-        newBuffer.set(originalBuffer.subarray(addOffset + 10), addOffset + 10 + ecsBuffer.length);
-    } else {
-        let optHeader = new Uint8Array(11);
-        optHeader.set([
-            0,                                              // uint8 ::MUST be 0 (root domain)
-            OPT_TYPE >> 8, OPT_TYPE & 0xff,                 // uint16::OPT code (OPT_TYPE=41)
-            0x10, 0x00,                                     // uint16::UDP payload size (4096)
-            0, 0, 0, 0,                                     // uint32::extended RCODE and flags
-            ecsBuffer.length >> 8, ecsBuffer.length & 0xff  // uint16::length of all RDATA
-        ]);
-        newBuffer = new Uint8Array(originalBuffer.length + optHeader.length + ecsBuffer.length);
-        newBuffer.set(originalBuffer, 0);
-        newBuffer.set(optHeader, originalBuffer.length);
-        newBuffer.set(ecsBuffer, originalBuffer.length + optHeader.length);
-        newBuffer[10] = (arcount + 1) >> 8;
-        newBuffer[11] = (arcount + 1) & 0xff;
-    }
+  if (hasOPT) {
+    // If an OPT record already exists, inject ECS data into it
+    newBuffer = new Uint8Array(originalBuffer.length + ecsBuffer.length);
+    newBuffer.set(originalBuffer.subarray(0, nextRRPos), 0);
+    newBuffer.set(ecsBuffer, nextRRPos);
+    newBuffer.set(originalBuffer.slice(nextRRPos), nextRRPos + ecsBuffer.length);
+    // Update RDLEN of OPT
+    let new_rdlen = rdlen + ecsBuffer.length;
+    newBuffer[rdlenPos] = (new_rdlen >> 8) & 0xff;
+    newBuffer[rdlenPos + 1] = new_rdlen & 0xff;
+  } else {
+    let optHeader = new Uint8Array(11);
+    optHeader.set([
+      0,                       // uint8 ::MUST be 0 (root domain)
+      OPT_TYPE >> 8, OPT_TYPE & 0xff,         // uint16::OPT code (OPT_TYPE=41)
+      0x04, 0xd0,                   // uint16::UDP payload size (1232)
+      0, 0, 0, 0,                   // uint32::extended RCODE and flags
+      ecsBuffer.length >> 8, ecsBuffer.length & 0xff // uint16::length of all RDATA
+    ]);
+    newBuffer = new Uint8Array(originalBuffer.length + optHeader.length + ecsBuffer.length);
+    newBuffer.set(originalBuffer, 0);
+    newBuffer.set(optHeader, originalBuffer.length);
+    newBuffer.set(ecsBuffer, originalBuffer.length + optHeader.length);
+    newBuffer[10] = (arcount + 1) >> 8;
+    newBuffer[11] = (arcount + 1) & 0xff;
+  }
 
-    return newBuffer;
+  return newBuffer;
 }
 
 /**
@@ -334,7 +449,7 @@ function routeRequest(method, pathname, headers, searchParams, request) {
     } else if (method === 'GET'  && pathname === REQ_QUERY_PATHNAME   && headers.get('accept') === APPL_DNS_MSG  && searchParams.has('dns')) {
         return dns_query_get(request);
     } else {
-        return new Response(null, { status: 404 });
+        return Promise.resolve(new Response(null, { status: 404 }));
     }
 }
 
