@@ -1,4 +1,5 @@
 # cf-workers-doh
+## gcore-fastedge-doh (alpha)
 
 [中文版 README ](https://github.com/simplerick-simplefun/cf-workers-doh/blob/main/README-CN.md)
 
@@ -26,7 +27,7 @@ Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Wo
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json)
 
 ## Installation
-- Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [index.js](/index.js), deploy the worker, and you're done.
+- Sign up for a free [Cloudflare Workers](https://workers.cloudflare.com/) account, create a new worker, replace the Script with the content of [cf-worker.js](/cf-worker.js), deploy the worker, and you're done.
 - Modify **"URL_UPSTREAM_DNS_QUERY"** **"URL_UPSTREAM_RESOLVE"** to switch to other upstream DNS service providers.
 - For Mainland China users:
   - you might need a custom domain to bypass GFW. Cloudflare Workers' default domain name might be banned in your region.
@@ -39,3 +40,9 @@ Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Wo
 - **Code Base**:
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
+
+## Gcore Fastedge deployment:
+- For developer testing only
+- At Alpha testing stage
+- You can compile [gcore-fastedge.js](/gcore-fastedge.js) into wasm file and upload to Gcore Fastedge Http Application，or you can download the compiled wasm file from Github Action.
+- Known Issue: Querying some domain name fails, where "fetch(queryUrl)" throws error. Suspected to be Gcore's bug.

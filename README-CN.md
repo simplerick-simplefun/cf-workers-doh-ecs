@@ -1,4 +1,5 @@
 # cf-workers-doh
+## gcore-fastedge-doh (alpha)
 
 ## **一个具有 "自动 ECS" 功能的 DNS-over-HTTPS 代理**
 
@@ -23,7 +24,7 @@
   - [GET /resolve (Google JSON API)](https://developers.google.com/speed/public-dns/docs/doh/json?hl=zh-cn)
 
 ## 安装
-- 注册一个免费的 [Cloudflare Workers](https://workers.cloudflare.com/) 账户，创建一个新的 Worker，将脚本替换为 [index.js](/index.js) 的内容，部署 Worker，就完成了。
+- 注册一个免费的 [Cloudflare Workers](https://workers.cloudflare.com/) 账户，创建一个新的 Worker，将脚本替换为 [cf-worker.js](/cf-worker.js) 的内容，部署 Worker，就完成了。
 - 修改 **"URL_UPSTREAM_DNS_QUERY"** **"URL_UPSTREAM_RESOLVE"**，以切换到其他上游 DNS 服务提供商。
 - 对于中国大陆用户：
   - 你可能需要一个自定义域名来绕过 GFW。Cloudflare Workers 的默认域名在你所在的地区可能会被封锁。
@@ -36,3 +37,9 @@
 - **代码基础**：
   - [https://github.com/tina-hello/doh-cf-workers](https://github.com/tina-hello/doh-cf-workers)
   - [https://github.com/GangZhuo/cf-doh](https://github.com/GangZhuo/cf-doh)
+
+## Gcore Fastedge 部署:
+- 限于开发者测试
+- 处于 Alpha 测试阶段
+- 可以自行将 [gcore-fastedge.js](/gcore-fastedge.js) 编译成 wasm 并上传至 Gcore Fastedge Http Application，也可以指下载 Github Action 中编译好的 wasm 文件
+- 已知问题: 对有些域名的查询会失败, 其中 "fetch(queryUrl)" 跳出错误。怀疑是 Gcore 的 bug。
