@@ -41,5 +41,5 @@
 ## Gcore Fastedge 部署:
 - 限于开发者测试
 - 处于 Alpha 测试阶段
-- 可以自行将 [gcore-fastedge.js](/gcore-fastedge.js) 编译成 wasm 并上传至 Gcore Fastedge Http Application，也可以指下载 Github Action 中编译好的 wasm 文件
+- 可以自行将 [gcore-fastedge.js](/gcore-fastedge.js) 编译成 wasm 并上传至 Gcore Fastedge Http Application，也可以下载 Github Action 中编译好的 wasm 文件
 - 已知问题: 对有些域名的查询会失败, 其中 "fetch(queryUrl)" 跳出错误。怀疑是 Gcore 的 bug。
