@@ -44,5 +44,5 @@ Proxy DoH (DNS-over-HTTPS) with "Auto ECS" (EDNS Client Subnet) on Cloudflare Wo
 ## Gcore Fastedge deployment:
 - For developer testing only
 - At Alpha testing stage
-- You can compile [gcore-fastedge.js](/gcore-fastedge.js) into wasm file and upload to Gcore Fastedge Http Application，or you can download the compiled wasm file from Github Action.
+- You can compile [gcore-fastedge.js](/gcore-fastedge.js) into wasm file and upload to Gcore Fastedge Http Application, or you can download the compiled wasm file from Github Action.
 - Known Issue: Querying some domain name fails, where "fetch(queryUrl)" throws error. Suspected to be Gcore's bug.
